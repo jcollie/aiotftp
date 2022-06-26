@@ -10,7 +10,7 @@
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }@inputs:
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -26,7 +26,15 @@
           ];
           shellHook = ''
             export POETRY_VIRTUALENVS_IN_PROJECT=true
+            export PS1='\n\[\033[1;34m\][aiotftp:\w]\$\[\033[0m\] '
           '';
+        };
+        packages = {
+          aiotftp = pkgs.poetry2nix.mkPoetryApplication {
+            python = pkgs.python310;
+            projectDir = ./.;
+          };
+          default = self.packages.${system}.aiotftp;
         };
       }
     );
