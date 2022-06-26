@@ -1,6 +1,6 @@
 import asyncio
-from collections.abc import MutableMapping
 import urllib.parse
+from collections.abc import MutableMapping
 
 from .packet import Mode, Opcode, Request
 from .protocol import InboundDataProtocol, OutboundDataProtocol
@@ -43,19 +43,18 @@ class _Request:
         self.stream = StreamReader()
 
         url = urllib.parse.urlsplit(resource)
-        if url.scheme != 'tftp':
-            raise ValueError('Unsupported scheme')
+        if url.scheme != "tftp":
+            raise ValueError("Unsupported scheme")
 
-        self.request = Request(
-            Opcode.RRQ, filename=url.path[1:], mode=Mode.OCTET)
+        self.request = Request(Opcode.RRQ, filename=url.path[1:], mode=Mode.OCTET)
         self.remote_addr = (url.hostname, url.port or 69)
-        self.local_addr = local_addr or ('0.0.0.0', 0)
+        self.local_addr = local_addr or ("0.0.0.0", 0)
 
     async def __aenter__(self):
         transport, protocol = await self._loop.create_datagram_endpoint(
-            lambda: InboundDataProtocol(
-                self.stream, tid=None, loop=self._loop),
-            local_addr=self.local_addr)
+            lambda: InboundDataProtocol(self.stream, tid=None, loop=self._loop),
+            local_addr=self.local_addr,
+        )
 
         transport.sendto(bytes(self.request), self.remote_addr)
         return self
@@ -80,15 +79,16 @@ async def write(resource, data, *, timeout=2.0, local_addr=None, loop=None):
         loop = asyncio.get_event_loop()
 
     url = urllib.parse.urlsplit(resource)
-    if url.scheme != 'tftp':
-        raise ValueError('Unsupported scheme')
+    if url.scheme != "tftp":
+        raise ValueError("Unsupported scheme")
 
     remote_addr = (url.hostname, url.port or 69)
-    local_addr = local_addr or ('0.0.0.0', 0)
+    local_addr = local_addr or ("0.0.0.0", 0)
 
     transport, protocol = await loop.create_datagram_endpoint(
         lambda: OutboundDataProtocol(tid=None, timeout=timeout, loop=loop),
-        local_addr=local_addr)
+        local_addr=local_addr,
+    )
 
     await protocol.start(url.path[1:], remote_addr)
 

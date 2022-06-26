@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "aiotftp"
+version = "0.2.1"
+description = "Python 3.5+ asyncio TFTP server"
+authors = ["Terry Kerr <terry@dtkerr.ca>"]
+license = "Mozilla Public License 2.0 (MPL 2.0)"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+attrs = "^21.4.0"
+async-timeout = "^4.0.2"
+
+[tool.poetry.dev-dependencies]
+black = "^22.3.0"
+flake8 = "^4.0.1"
+flake8-docstrings = "^1.6.0"
+flake8-import-order = "^0.18.1"
+
+# [tool.poetry.group.test.dependencies]
+async_generator = "^1.10"
+hypothesis = "^6.47.5"
+pytest = "^7.1.2"
+pytest-asyncio = "^0.18.3"
+tox = "^3.25.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -3,13 +3,13 @@ import attr
 
 
 def ushort(n):
-    return int.to_bytes(n, length=2, byteorder='big')
+    return int.to_bytes(n, length=2, byteorder="big")
 
 
 def parse_ushort(buf):
     if len(buf) != 2:
         raise ValueError("Requires two bytes")
-    return int.from_bytes(buf, byteorder='big')
+    return int.from_bytes(buf, byteorder="big")
 
 
 def pairwise(data):
@@ -30,9 +30,9 @@ class Opcode(enum.Enum):
 
 
 class Mode(enum.Enum):
-    NETASCII = b'netascii'
-    OCTET = b'octet'
-    MAIL = b'mail'
+    NETASCII = b"netascii"
+    OCTET = b"octet"
+    MAIL = b"mail"
 
     @classmethod
     def get(cls, s):
@@ -65,16 +65,24 @@ class Request(Packet):
 
     @classmethod
     def parse(cls, buf):
-        filename, mode, *extensions, _ = buf[2:].tobytes().split(b'\x00')
+        filename, mode, *extensions, _ = buf[2:].tobytes().split(b"\x00")
         return cls(
             opcode=Opcode(buf[0:2]),
-            filename=filename.decode('ascii'),
+            filename=filename.decode("ascii"),
             mode=Mode.get(mode),
-            options=pairwise(field.decode('ascii') for field in extensions))
+            options=pairwise(field.decode("ascii") for field in extensions),
+        )
 
-    def __bytes__(self):
-        return b''.join((self.opcode.value, bytes(self.filename, "ascii"),
-                         b"\x00", self.mode.value, b"\x00"))
+    def __bytes__(self) -> bytes:
+        return b"".join(
+            (
+                self.opcode.value,
+                bytes(self.filename, "ascii"),
+                b"\x00",
+                self.mode.value,
+                b"\x00",
+            )
+        )
 
 
 @attr.s
@@ -88,8 +96,8 @@ class Data(Packet):
     def parse(cls, buf):
         return cls(blockid=parse_ushort(buf[2:4]), data=buf[4:])
 
-    def __bytes__(self):
-        return b''.join((self.opcode.value, ushort(self.blockid), self.data))
+    def __bytes__(self) -> bytes:
+        return b"".join((self.opcode.value, ushort(self.blockid), self.data))
 
 
 @attr.s
@@ -102,8 +110,8 @@ class Ack(Packet):
     def parse(cls, buf):
         return cls(blockid=parse_ushort(buf[2:4]))
 
-    def __bytes__(self):
-        return b''.join((self.opcode.value, ushort(self.blockid)))
+    def __bytes__(self) -> bytes:
+        return b"".join((self.opcode.value, ushort(self.blockid)))
 
 
 @attr.s
@@ -115,12 +123,13 @@ class Error(Packet):
 
     @classmethod
     def parse(cls, buf):
-        message, _ = buf[4:].tobytes().split(b'\x00')
-        return cls(code=ErrorCode(buf[2:4]), message=message.decode('ascii'))
+        message, _ = buf[4:].tobytes().split(b"\x00")
+        return cls(code=ErrorCode(buf[2:4]), message=message.decode("ascii"))
 
-    def __bytes__(self):
-        return b''.join((self.opcode.value, self.code.value,
-                         bytes(self.message, "ascii"), b"\x00"))
+    def __bytes__(self) -> bytes:
+        return b"".join(
+            (self.opcode.value, self.code.value, bytes(self.message, "ascii"), b"\x00")
+        )
 
 
 PACKETS = {
@@ -132,7 +141,7 @@ PACKETS = {
 }
 
 
-def parse(data):
+def parse(data: bytes) -> Packet:
     """Return a Packet class appropriate to what's in the buffer."""
     with memoryview(data) as buf:
         opcode = Opcode(buf[0:2])

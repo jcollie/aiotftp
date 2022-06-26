@@ -39,7 +39,8 @@ class Request:
         transfer = StreamReader(loop=self._loop)
         transport, protocol = await self._loop.create_datagram_endpoint(
             lambda: InboundDataProtocol(transfer, tid=self.tid, loop=self._loop),
-            remote_addr=self.tid)
+            remote_addr=self.tid,
+        )
 
         protocol.start()
         return transfer
@@ -54,15 +55,17 @@ class Request:
 class RequestHandler(asyncio.DatagramProtocol):
     """Primary listener to dispatch incoming requests."""
 
-    def __init__(self,
-                 app,
-                 read,
-                 write,
-                 *,
-                 loop=None,
-                 access_log_class=AccessLogger,
-                 access_log=access_log,
-                 access_log_format=AccessLogger.LOG_FORMAT) -> None:
+    def __init__(
+        self,
+        app,
+        read,
+        write,
+        *,
+        loop=None,
+        access_log_class=AccessLogger,
+        access_log=access_log,
+        access_log_format=AccessLogger.LOG_FORMAT,
+    ) -> None:
         if loop is None:
             loop = asyncio.get_event_loop()
         self._loop = loop
@@ -74,8 +77,7 @@ class RequestHandler(asyncio.DatagramProtocol):
 
         self.access_log = access_log
         if access_log:
-            self.access_logger = access_log_class(access_log,
-                                                  access_log_format)
+            self.access_logger = access_log_class(access_log, access_log_format)
         else:
             self.access_logger = None
 
@@ -89,13 +91,14 @@ class RequestHandler(asyncio.DatagramProtocol):
 
     def datagram_received(self, data, addr):
         packet = parse(data)
-        if not packet.is_request:
-            self.transport.sendto(OPCODE_ERR)
+        if packet.opcode == Opcode.ACK:
+            pass
+        elif not packet.is_request:
+            self.transport.sendto(OPCODE_ERR, addr)
         elif packet.mode != Mode.OCTET:
-            self.transport.sendto(MODE_ERR)
+            self.transport.sendto(MODE_ERR, addr)
         else:
-            self._task_handler = self._loop.create_task(
-                self.start(packet, addr))
+            self._task_handler = self._loop.create_task(self.start(packet, addr))
 
     def send(self, packet, addr=None):
         self.transport.sendto(packet, addr)
@@ -107,7 +110,8 @@ class RequestHandler(asyncio.DatagramProtocol):
             filename=packet.filename,
             remote=addr,
             method=packet.opcode,
-            tid=tid)
+            tid=tid,
+        )
 
         if packet.opcode == Opcode.RRQ:
             await self._start_rrq(request, packet, tid)
@@ -120,15 +124,13 @@ class RequestHandler(asyncio.DatagramProtocol):
             now = self._loop.time()
 
         if self.read is None:
-            packet = Error(
-                ErrorCode.ACCESSVIOLATION, message="Permission denied")
+            packet = Error(ErrorCode.ACCESSVIOLATION, message="Permission denied")
             self.transport.sendto(bytes(packet), tid)
             return
 
         try:
             response = await self.read(request)
         except Exception:
-            LOG.exception("RRQ failed")
             formatted_lines = traceback.format_exc().splitlines()
             packet = Error(ErrorCode.NOTDEFINED, message=formatted_lines[-1])
             self.transport.sendto(bytes(packet), tid)
@@ -151,8 +153,7 @@ class RequestHandler(asyncio.DatagramProtocol):
             now = self._loop.time()
 
         if self.write is None:
-            packet = Error(
-                ErrorCode.ACCESSVIOLATION, message="Permission denied")
+            packet = Error(ErrorCode.ACCESSVIOLATION, message="Permission denied")
             self.transport.sendto(bytes(packet), tid)
             return
 
@@ -175,8 +176,7 @@ class RequestHandler(asyncio.DatagramProtocol):
     async def shutdown(self, timeout=15.0):
         with suppress(asyncio.CancelledError, asyncio.TimeoutError):
             with async_timeout.timeout(timeout, loop=self._loop):
-                if (self._task_handler is not None
-                        and not self._task_handler.done()):
+                if self._task_handler is not None and not self._task_handler.done():
                     await self._task_handler
 
         if self._task_handler is not None:
